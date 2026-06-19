@@ -34,6 +34,38 @@ docker run --rm -p 4567:4567 -v "$(pwd)/docker/data:/taginfo-data" \
 詳しい環境変数・運用(地域抽出時のノード位置索引、メモリ要件、地図のバウンディング
 ボックス調整など)は各サブディレクトリの README を参照してください。
 
+## 日本向けの実行例
+
+`branding/` に日本向けのアイコン・地図背景画像を同梱しています。
+
+```sh
+# 1. db ソースを生成(日本)
+docker build -f docker/generator/Dockerfile -t taginfo-db docker/generator
+docker run --rm -v "$(pwd)/docker/data:/data" \
+    -e OSM_PBF_URL=https://download.geofabrik.de/asia/japan-latest.osm.pbf \
+    -e GEO_LEFT=122 -e GEO_BOTTOM=20 -e GEO_RIGHT=154 -e GEO_TOP=46 \
+    -e GEO_WIDTH=320 -e GEO_HEIGHT=260 \
+    taginfo-db
+
+# 2. Web を起動(日本向けカスタマイズ付き)
+docker build -f docker/web/Dockerfile -t taginfo-web docker/web
+docker run --rm -p 4567:4567 \
+    -v "$(pwd)/docker/data:/taginfo-data" \
+    -v "$(pwd)/branding:/branding:ro" \
+    -e DOWNLOAD_SOURCES="wiki languages projects" \
+    -e INSTANCE_NAME="Taginfo Japan" \
+    -e INSTANCE_DESCRIPTION="日本のOpenStreetMapタグ統計" \
+    -e INSTANCE_AREA=Japan \
+    -e INSTANCE_ICON_FILE=/branding/japan-flag.png \
+    -e MAP_BACKGROUND_FILE=/branding/japan-map.png \
+    -e GEO_LEFT=122 -e GEO_BOTTOM=20 -e GEO_RIGHT=154 -e GEO_TOP=46 \
+    -e GEO_WIDTH=320 -e GEO_HEIGHT=260 \
+    taginfo-web
+```
+
+> **重要**: `GEO_*` の値は db 生成時と Web 起動時で一致させてください。
+> ずれると地理分布の表示が背景地図とずれます。
+
 ## データの扱い
 
 `docker/data/` は生成物・ダウンロードキャッシュ・実行時データの置き場で、

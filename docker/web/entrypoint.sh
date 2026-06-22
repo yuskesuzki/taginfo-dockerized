@@ -73,6 +73,10 @@ fi
 #    GEO_LEFT/GEO_BOTTOM/GEO_RIGHT/GEO_TOP/GEO_WIDTH/GEO_HEIGHT -> geodistribution.*
 #      ※ GEO_* は db 生成時(taginfo-stats)の値と一致させること。ずれると密度マップが
 #      　 背景とズレる。地域に最適化する場合は db ソースの再生成も必要。
+#    MIN_TAG_COMBINATION_COUNT                -> sources.master.min_tag_combination_count
+#      タグ組み合わせの最小出現回数(既定 1000)。地域抽出では件数が少ないため
+#      小さな値(例: 10)にすると組み合わせが表示されるようになる。
+#      変更後は REBUILD_MASTER=1 での再起動が必要。
 #-----------------------------------------------------------------------------
 ruby -rjson -e '
   c = JSON.parse(File.read("/opt/taginfo/taginfo-config-example.json"))
@@ -108,6 +112,9 @@ ruby -rjson -e '
   num.call(geo, "top",    "GEO_TOP")
   num.call(geo, "width",  "GEO_WIDTH")
   num.call(geo, "height", "GEO_HEIGHT")
+
+  master = (c["sources"] ||= {})["master"] ||= {}
+  num.call(master, "min_tag_combination_count", "MIN_TAG_COMBINATION_COUNT")
 
   File.write("/opt/taginfo-config.json", JSON.pretty_generate(c))
 '

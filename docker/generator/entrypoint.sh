@@ -46,9 +46,15 @@ if [ -n "${OSM_PBF_FILE:-}" ]; then
     log "既存ファイルを使用: $OSM_FILE"
 elif [ -n "${OSM_PBF_URL:-}" ]; then
     OSM_FILE=${DOWNLOAD_DIR}/region.osm.pbf
+    # 過去の失敗で OSM_FILE がディレクトリになっていたら削除する
+    if [ -d "$OSM_FILE" ]; then
+        log "WARNING: $OSM_FILE がディレクトリになっています。削除して再ダウンロードします。"
+        rm -rf "$OSM_FILE"
+    fi
     log "ダウンロード開始: $OSM_PBF_URL"
-    # -c で再開可能。一旦 .part に落としてから atomic に rename する。
-    wget --no-verbose --continue -O "${OSM_FILE}.part" "$OSM_PBF_URL"
+    # --continue は -O と組み合わせると動作が不定なため使用しない。
+    # 一旦 .part に落としてから atomic に rename する。
+    wget --no-verbose -O "${OSM_FILE}.part" "$OSM_PBF_URL"
     mv -f "${OSM_FILE}.part" "$OSM_FILE"
     log "ダウンロード完了: $OSM_FILE ($(du -h "$OSM_FILE" | cut -f1))"
 else
@@ -93,6 +99,25 @@ cat >/opt/taginfo-config.json <<JSON
 JSON
 
 log "taginfo-config.json を生成しました"
+
+#-----------------------------------------------------------------------------
+#  selection.db を update.sh が探す場所($DATADIR/../selection.db)に置く
+#
+#  sources/db/update.sh は SELECTION_DB=$DATADIR/../selection.db を参照する。
+#  DATADIR=/data のとき /data/../selection.db = /selection.db になる。
+#  web コンテナが作る selection.db は $DATADIR/selection.db にあるため、
+#  シンボリックリンクで繋ぐ。selection.db がない場合(初回実行)は
+#  tag_combinations は生成されない(2 回目以降の実行で正しく生成される)。
+#-----------------------------------------------------------------------------
+readonly SELECTION_SRC="${DATADIR}/selection.db"
+readonly SELECTION_DST="${DATADIR}/../selection.db"
+if [ -f "$SELECTION_SRC" ]; then
+    ln -sf "$(realpath "$SELECTION_SRC")" "$SELECTION_DST"
+    log "selection.db をリンク: $SELECTION_SRC -> $SELECTION_DST"
+else
+    log "selection.db が見つかりません(初回実行)。tag_combinations は生成されません。"
+    log "  web を一度起動した後に再実行すると tag_combinations が生成されます。"
+fi
 
 #-----------------------------------------------------------------------------
 #  db ソースを生成する(本家 taginfo の update.sh をそのまま使う)

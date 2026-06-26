@@ -11,6 +11,8 @@
 #                   (OSM_PBF_URL より優先)
 #    DATADIR        出力先ディレクトリ(既定 /data)
 #    KEEP_PBF       1 ならダウンロードした pbf を生成後も残す(既定: 残す)
+#    S3_BUCKET      アップロード先の S3 バケット名(未指定ならアップロードしない)
+#    S3_PREFIX      S3 のプレフィックス(既定 taginfo/)
 #
 #    地理分布画像のバウンディングボックス/解像度(既定は全世界):
 #    GEO_LEFT GEO_BOTTOM GEO_RIGHT GEO_TOP   (既定 -180 -90 180 90)
@@ -134,6 +136,22 @@ log "db ソースの生成が完了: ${DATADIR}/taginfo-db.db"
 if [ -z "${OSM_PBF_FILE:-}" ] && [ "${KEEP_PBF:-1}" != "1" ]; then
     log "ダウンロードした pbf を削除: $OSM_FILE"
     rm -f "$OSM_FILE"
+fi
+
+#-----------------------------------------------------------------------------
+#  S3 にアップロードする(S3_BUCKET が指定されている場合のみ)
+#-----------------------------------------------------------------------------
+if [ -n "${S3_BUCKET:-}" ]; then
+    S3_PREFIX="${S3_PREFIX:-taginfo/}"
+    log "S3 アップロード開始: s3://${S3_BUCKET}/${S3_PREFIX}"
+    aws s3 sync "$DATADIR" "s3://${S3_BUCKET}/${S3_PREFIX}" \
+        --exclude "download/region.osm.pbf" \
+        --exclude "download/region.osm.pbf.part" \
+        --exclude "log/*" \
+        --exclude "*.tmp"
+    log "S3 アップロード完了"
+else
+    log "S3_BUCKET 未指定。アップロードをスキップ。"
 fi
 
 log "完了。生成物: ${DATADIR}/taginfo-db.db"

@@ -74,6 +74,7 @@ ARG TAGINFO_REPO=https://github.com/taginfo/taginfo
 RUN apt-get update -qq && \
     apt-get install -yq --no-install-suggests --no-install-recommends \
         ca-certificates \
+        curl \
         git \
         libbz2-1.0 \
         libexpat1 \
@@ -82,9 +83,21 @@ RUN apt-get update -qq && \
         ruby \
         ruby-sqlite3 \
         sqlite3 \
+        unzip \
         wget \
         zlib1g && \
     rm -rf /var/lib/apt/lists/*
+
+# AWS CLI v2(S3 アップロード用。S3_BUCKET 未指定時は使われない)
+RUN arch=$(dpkg --print-architecture) && \
+    if [ "$arch" = "amd64" ]; then \
+        curl -sL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscli.zip; \
+    else \
+        curl -sL "https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip" -o /tmp/awscli.zip; \
+    fi && \
+    unzip -q /tmp/awscli.zip -d /tmp && \
+    /tmp/aws/install && \
+    rm -rf /tmp/awscli.zip /tmp/aws
 
 # 本家 taginfo を浅く clone(SQL・update.sh・util.sh・lib 一式のため)。
 # bin/taginfo-config.rb は <repo>/../taginfo-config.json を読むので、
